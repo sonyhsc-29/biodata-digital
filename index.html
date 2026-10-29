@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Biodata Digital</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- docx JS library for Word generation -->
+  <script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <!-- PWA Dynamic Manifest Injection -->
+  <script>
+    const manifestData = {
+      "name": "Biodata Pegawai App",
+      "short_name": "Biodata",
+      "start_url": ".",
+      "display": "standalone",
+      "background_color": "#ffffff",
+      "theme_color": "#2563eb",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-size='50' fill='white' font-family='sans-serif'>BIO</text></svg>",
+          "sizes": "192x192 512x512",
+          "type": "image/svg+xml"
+        }
+      ]
+    };
+    const stringManifest = JSON.stringify(manifestData);
+    const blobManifest = new Blob([stringManifest], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blobManifest);
+    const linkManifest = document.createElement('link');
+    linkManifest.rel = 'manifest';
+    linkManifest.href = manifestURL;
+    document.head.appendChild(linkManifest);
+  </script>
+
+  <style>
+    /* Glassmorphism & Modern Styling */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    
+    /* Layout styling for Desktop & Mobile */
+    @media (min-width: 768px) {
+      .main-content { margin-left: 16rem; }
+      .mobile-bottom-nav { display: none !important; }
+      .desktop-sidebar { display: flex !important; }
+    }
+    @media (max-width: 767px) {
+      .main-content { margin-left: 0; margin-bottom: 5rem; }
+      .mobile-bottom-nav { display: flex !important; }
+      .desktop-sidebar { display: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen">
+
+  <!-- ==================== SIDEBAR DESKTOP ==================== -->
+  <aside class="desktop-sidebar fixed top-0 left-0 h-screen w-64 glass-card z-40 flex-col justify-between p-4 shadow-sm border-r border-slate-200 hidden">
+    <div>
+      <div class="flex items-center gap-3 px-2 py-4 border-b border-slate-200/80 mb-6">
+        <div class="p-2.5 bg-blue-600 text-white rounded-xl shadow-md">
+          <i data-lucide="file-text" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-slate-800 text-lg leading-tight">Biodata</h1>
+          <p class="text-xs text-slate-500">Sistem Biodata Digital</p>
+        </div>
+      </div>
+
+      <nav class="space-y-1">
+        <button onclick="switchTab('form')" id="desk-nav-form" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition hidden">
+          <i data-lucide="edit-3" class="w-5 h-5"></i>
+          <span>Isi / Edit Biodata</span>
+        </button>
+        <!-- Navigasi preview/cetak disembunyikan untuk user, kini hanya berada di panel admin -->
+        <button onclick="switchTab('admin')" id="desk-nav-admin" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition hidden">
+          <i data-lucide="users" class="w-5 h-5"></i>
+          <span>Kelola Biodata & Cetak</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="pt-4 border-t border-slate-200">
+      <div id="user-badge" class="px-3 py-2 bg-slate-100 rounded-xl mb-3 text-xs text-slate-600">
+        <div class="font-semibold text-slate-800" id="badge-name">Tamu</div>
+        <div class="truncate text-slate-500" id="badge-detail">Belum masuk</div>
+      </div>
+      <button id="btn-logout" onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 text-sm font-medium transition hidden">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        <span>Keluar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ==================== MAIN CONTENT AREA ==================== -->
+  <main class="main-content min-h-screen p-4 md:p-8">
+
+    <!-- LOGIN SCREEN -->
+    <section id="sec-login" class="max-w-md mx-auto my-12 glass-card p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200">
+      <div class="text-center mb-6">
+        <div class="inline-flex p-3 bg-blue-100 text-blue-600 rounded-2xl mb-3">
+          <i data-lucide="user-check" class="w-8 h-8"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-800">Akses Sistem Biodata</h2>
+        <p class="text-sm text-slate-500 mt-1">Gunakan No HP & Email yang Bapak Ibu Miliki untuk Sekedar Login</p>
+      </div>
+
+      <!-- Toggle Login Type -->
+      <div class="flex p-1 bg-slate-100 rounded-xl mb-6">
+        <button id="btn-toggle-user" onclick="setLoginType('user')" class="flex-1 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition">User/Pengguna</button>
+        <button id="btn-toggle-admin" onclick="setLoginType('admin')" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition">Khusus Admin</button>
+      </div>
+
+      <!-- User Login Form -->
+      <form id="form-login-user" onsubmit="loginUser(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor HP / WhatsApp *</label>
+          <input type="tel" id="login-hp" required placeholder="081234567890" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Alamat Email *</label>
+          <input type="email" id="login-email" required placeholder="nama@email.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm">
+        </div>
+        <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+          <span>Masuk / Buka Biodata</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </form>
+
+      <!-- Admin Login Form -->
+      <form id="form-login-admin" onsubmit="loginAdmin(event)" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Email Admin</label>
+          <input type="email" id="admin-email" placeholder="admin@domain.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Password</label>
+          <input type="password" id="admin-password" placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 text-sm">
+        </div>
+        <button type="submit" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+          <span>Login Administrator</span>
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+        </button>
+      </form>
+    </section>
+
+    <!-- FORM BIODATA SECTION -->
+    <section id="sec-form" class="max-w-4xl mx-auto hidden space-y-6">
+      <div class="flex items-center justify-between glass-card p-6 rounded-2xl shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Formulir Isian Biodata Digital</h2>
+          <p class="text-xs text-slate-500">Isi data pribadi Anda secara lengkap dan benar.</p>
+        </div>
+      </div>
+
+      <form onsubmit="saveBiodata(event)" class="space-y-6">
+        
+        <!-- Import Kop Surat telah dihapus dari sisi User (hanya dikelola oleh Admin) -->
+
+        <!-- Group 1: Data Identitas -->
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2 border-b border-slate-100 pb-2">
+            <i data-lucide="id-card" class="w-4 h-4 text-blue-600"></i> Data Identitas Diri
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap & Gelar *</label>
+              <input type="text" id="bio-nama" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">NIP *</label>
+              <input type="text" id="bio-nip" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">No. KTP (NIK) *</label>
+              <input type="text" id="bio-ktp" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Jenis Kelamin *</label>
+              <select id="bio-jk" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+                <option value="Laki-laki">Laki-laki</option>
+                <option value="Perempuan">Perempuan</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tempat Lahir *</label>
+              <input type="text" id="bio-tempat-lahir" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal Lahir *</label>
+              <input type="date" id="bio-tgl-lahir" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Alamat Lengkap *</label>
+            <textarea id="bio-alamat" rows="2" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"></textarea>
+          </div>
+        </div>
+
+        <!-- Group 2: Jabatan & Pendidikan -->
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2 border-b border-slate-100 pb-2">
+            <i data-lucide="briefcase" class="w-4 h-4 text-blue-600"></i> Pendidikan & Kepegawaian
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Pendidikan Terakhir *</label>
+              <select id="bio-pendidikan" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+                <option value="D3">D3</option>
+                <option value="S-1">S-1</option>
+                <option value="S-2">S-2</option>
+                <option value="S-3">S-3</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Pangkat / Golongan *</label>
+              <input type="text" id="bio-pangkat" placeholder="Contoh: Penata Muda / III/a" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Jabatan Saat Ini *</label>
+              <input type="text" id="bio-jabatan" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Instansi Bertugas *</label>
+              <input type="text" id="bio-instansi" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 3: Kontak & Keuangan -->
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2 border-b border-slate-100 pb-2">
+            <i data-lucide="credit-card" class="w-4 h-4 text-blue-600"></i> Kontak, NPWP & Bank
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">No. Telp/HP & Email *</label>
+              <input type="text" id="bio-kontak" required readonly class="w-full px-3 py-2 bg-slate-100 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">NPWP *</label>
+              <input type="text" id="bio-npwp" required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-xs font-semibold text-slate-600 mb-1">No. Rekening Bank Nagari *</label>
+              <input type="text" id="bio-rek-nagari" required placeholder="1234.5678.9000" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Pengalaman Sesuai Bidang yang Dimiliki *</label>
+            <textarea id="bio-pengalaman" rows="3" placeholder="Tuliskan pengalaman kerja atau keahlian utama Anda..." required class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-blue-500/50 outline-none"></textarea>
+          </div>
+        </div>
+
+        <div class="flex gap-4">
+          <button type="submit" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i> Simpan Perubahan Data
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- PREVIEW & CETAK SECTION -->
+    <section id="sec-preview" class="max-w-4xl mx-auto hidden space-y-6">
+      <div class="flex items-center justify-between glass-card p-6 rounded-2xl shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Pratinjau & Cetak Dokumen</h2>
+          <p class="text-xs text-slate-500">Periksa format cetak resmi dan unduh dokumen Microsoft Word (.docx).</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="exportToWord()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs shadow-md transition flex items-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Unduh Word (.docx)
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Area Mockup -->
+      <div id="print-area" class="bg-white p-8 rounded-2xl shadow-lg border border-slate-200 text-slate-800 space-y-6 max-w-3xl mx-auto">
+        <!-- Kop Surat Header -->
+        <div class="border-b-2 border-slate-800 pb-4 text-center">
+          <img id="view-kop-img" src="" class="w-full max-h-32 object-contain hidden mb-2" alt="Kop Surat">
+          <div id="view-kop-fallback" class="py-2 text-center">
+            <h2 class="font-bold text-lg uppercase tracking-wide">Pemerintah Provinsi / Kota / Kabupaten</h2>
+            <p class="text-xs text-slate-500">FORMULIR BIODATA DIGITAL</p>
+          </div>
+        </div>
+
+        <h3 class="text-center font-bold text-base underline uppercase my-4 tracking-wider">BIODATA</h3>
+
+        <table class="w-full text-xs md:text-sm border-collapse">
+          <tbody id="preview-table-body" class="divide-y divide-slate-100">
+            <!-- Dynamic rows injected via JavaScript -->
+          </tbody>
+        </table>
+
+        <div class="pt-8 flex justify-end text-xs text-slate-600">
+          <div class="text-center w-56">
+            <p id="preview-date">Padang, 29 Oktober 2026</p>
+            <p class="mt-1"></p>
+            <div class="h-16"></div>
+            <p class="font-bold underline" id="preview-sign-name">-</p>
+            <p id="preview-sign-nip">NIP. -</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN KELOLA DATA SECTION -->
+    <section id="sec-admin" class="max-w-6xl mx-auto hidden space-y-6">
+      <div class="glass-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800">Panel Administrator</h2>
+          <p class="text-xs text-slate-500">Kelola Kop Surat global, data pegawai, serta unduh formulir Word (.docx).</p>
+        </div>
+        <div class="w-full md:w-72">
+          <input type="text" id="admin-search" oninput="filterAdminData()" placeholder="Cari Nama / NIP / HP..." class="w-full px-4 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-blue-500/50 outline-none">
+        </div>
+      </div>
+
+      <!-- Import Kop Surat Global (Khusus Admin) -->
+      <div class="glass-card p-6 rounded-2xl space-y-3">
+        <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+          <i data-lucide="image" class="w-4 h-4 text-blue-600"></i> Kelola Kop Surat Resmi (Global)
+        </h3>
+        <div class="flex flex-col sm:flex-row items-center gap-4">
+          <div id="admin-kop-preview-container" class="w-full sm:w-72 h-24 bg-slate-100 border border-dashed border-slate-300 rounded-xl flex items-center justify-center text-xs text-slate-400 overflow-hidden">
+            <img id="admin-kop-preview-img" src="" class="h-full w-full object-contain hidden" alt="Kop Surat Global">
+            <span id="admin-kop-placeholder">Belum Ada Kop Surat</span>
+          </div>
+          <div class="flex-1 w-full space-y-2">
+            <input type="file" id="admin-input-kop" accept="image/png, image/jpeg" onchange="handleAdminKopUpload(event)" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <p class="text-[11px] text-slate-400">Kop Surat ini akan secara otomatis diterapkan pada seluruh dokumen Word (.docx) pegawai yang diunduh oleh Admin.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl overflow-hidden shadow-sm">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-100/80 uppercase font-semibold text-slate-700">
+              <tr>
+                <th class="p-3.5">Nama & NIP</th>
+                <th class="p-3.5">Jabatan & Instansi</th>
+                <th class="p-3.5">Pendidikan</th>
+                <th class="p-3.5">Kontak</th>
+                <th class="p-3.5 text-center">Aksi Dokumen</th>
+              </tr>
+            </thead>
+            <tbody id="admin-table-body" class="divide-y divide-slate-100">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MOBILE BOTTOM NAVIGATION ==================== -->
+  <nav id="mobile-nav" class="mobile-bottom-nav fixed bottom-0 left-0 right-0 glass-card border-t border-slate-200 z-40 p-2 flex justify-around items-center hidden shadow-lg">
+    <button onclick="switchTab('form')" id="mob-nav-form" class="flex flex-col items-center gap-1 p-2 text-blue-600 hidden">
+      <i data-lucide="edit-3" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Form</span>
+    </button>
+    <button onclick="switchTab('admin')" id="mob-nav-admin" class="flex flex-col items-center gap-1 p-2 text-slate-500 hidden">
+      <i data-lucide="users" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Admin</span>
+    </button>
+    <button onclick="handleLogout()" id="mob-nav-logout" class="flex flex-col items-center gap-1 p-2 text-red-500 hidden">
+      <i data-lucide="log-out" class="w-5 h-5"></i>
+      <span class="text-[10px] font-medium">Keluar</span>
+    </button>
+  </nav>
+
+  <!-- Modal Konfirmasi Hapus -->
+  <div id="modal-delete" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="glass-card max-w-sm w-full p-6 rounded-2xl shadow-xl space-y-4">
+      <div class="flex items-center gap-3 text-red-600">
+        <div class="p-2 bg-red-100 rounded-xl">
+          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base">Hapus Data Pegawai?</h3>
+      </div>
+      <p class="text-xs text-slate-600">Apakah Anda yakin ingin menghapus data pegawai ini? Tindakan ini tidak dapat dibatalkan.</p>
+      <div class="flex gap-2 justify-end pt-2">
+        <button onclick="closeDeleteModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">Batal</button>
+        <button id="btn-confirm-delete" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-semibold transition">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Popup Sukses Simpan & Auto Logout -->
+  <div id="modal-success-save" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="glass-card max-w-sm w-full p-6 rounded-2xl shadow-xl space-y-4 text-center">
+      <div class="inline-flex p-3 bg-emerald-100 text-emerald-600 rounded-full mb-1">
+        <i data-lucide="check-circle-2" class="w-10 h-10"></i>
+      </div>
+      <h3 class="font-bold text-slate-800 text-lg">Data Berhasil Disimpan!</h3>
+      <p class="text-xs text-slate-600">Terima kasih, biodata Anda telah tersimpan ke dalam sistem. Sesi Anda akan otomatis keluar sekarang.</p>
+      <div class="pt-2">
+        <button onclick="confirmSuccessLogout()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2">
+          <span>Mengerti & Keluar</span>
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FIREBASE & APPLICATION LOGIC ==================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    // KONFIGURASI FIREBASE & SAKELAR PREVIEW
+    const IS_PREVIEW = false; // Set false jika sudah memasukkan config Firebase asli
+    const firebaseConfig = {
+      apiKey: "AIzaSyAR7D0Hj6dIVdi2kI9Vf3DdryQNm4dWi5o",
+      authDomain: "biodata-arsip.firebaseapp.com",
+      projectId: "biodata-arsip",
+      storageBucket: "biodata-arsip.firebasestorage.app",
+      messagingSenderId: "872942233066",
+      appId: "1:872942233066:web:ccf22e4c7549e68454be93",
+      measurementId: "G-S1BC4DFGNX"
+    };
+
+    // State Aplikasi
+    let app, db, auth;
+    let currentUser = null; // { type: 'user'|'admin', id: '', data: {} }
+    let allPegawaiData = [];
+    let globalKopBase64 = "";
+    let deleteTargetId = null;
+
+    // Inisialisasi Icon
+    lucide.createIcons();
+
+    // Inisialisasi Firebase
+    if (!IS_PREVIEW && firebaseConfig.apiKey !== "API_KEY_ANDA") {
+      app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      auth = getAuth(app);
+      
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          currentUser = { type: 'admin', email: user.email };
+          updateUserUI();
+          switchTab('admin');
+          loadAdminData();
+        }
+      });
+    }
+
+    // Dynamic Service Worker PWA
+    if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+      try {
+        const swCode = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('fetch', (e) => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
+        `;
+        const blobSW = new Blob([swCode], { type: 'text/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(blobSW))
+          .then(() => console.log('Service Worker Active'))
+          .catch(err => console.warn('SW Blob error:', err.message));
+      } catch (err) {
+        console.warn('SW Skip:', err.message);
+      }
+    }
+
+    // Auto Setup Database saat User Pertama kali Login
+    async function autoSetupDatabase(userDocId, defaultData) {
+      if (IS_PREVIEW || !db) return;
+      const ref = doc(db, "pegawai", userDocId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, defaultData);
+      }
+    }
+
+    // Toggle Tab Login Admin/Pegawai
+    window.setLoginType = function(type) {
+      const btnUser = document.getElementById('btn-toggle-user');
+      const btnAdmin = document.getElementById('btn-toggle-admin');
+      const formUser = document.getElementById('form-login-user');
+      const formAdmin = document.getElementById('form-login-admin');
+
+      if (type === 'user') {
+        btnUser.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition";
+        btnAdmin.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition";
+        formUser.classList.remove('hidden');
+        formAdmin.classList.add('hidden');
+      } else {
+        btnAdmin.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-white shadow-sm text-blue-600 transition";
+        btnUser.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-slate-500 hover:text-slate-800 transition";
+        formAdmin.classList.remove('hidden');
+        formUser.classList.add('hidden');
+      }
+    };
+
+    // Login Pegawai
+    window.loginUser = async function(e) {
+      e.preventDefault();
+      const hp = document.getElementById('login-hp').value.trim();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+
+      if (!hp || !email) {
+        alert("Nomor HP dan Email wajib diisi!");
+        return;
+      }
+
+      const docId = `pegawai_${hp.replace(/\D/g, '')}_${email.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+      // Data awal kosong
+      const defaultData = {
+        hp, email,
+        nama: "", nip: "", ktp: "", jk: "Laki-laki",
+        tempatLahir: "", tglLahir: "", alamat: "",
+        pendidikan: "S-1", pangkat: "", jabatan: "",
+        instansi: "", npwp: "", rekNagari: "", pengalaman: ""
+      };
+
+      if (!IS_PREVIEW && db) {
+        await autoSetupDatabase(docId, defaultData);
+        const snap = await getDoc(doc(db, "pegawai", docId));
+        currentUser = { type: 'user', id: docId, data: snap.data() };
+      } else {
+        const savedLocal = localStorage.getItem(docId);
+        currentUser = {
+          type: 'user',
+          id: docId,
+          data: savedLocal ? JSON.parse(savedLocal) : defaultData
+        };
+      }
+
+      updateUserUI();
+      loadFormData();
+      switchTab('form');
+    };
+
+    // Login Admin
+    window.loginAdmin = async function(e) {
+      e.preventDefault();
+      const email = document.getElementById('admin-email').value.trim();
+      const pass = document.getElementById('admin-password').value;
+
+      if (!IS_PREVIEW && auth) {
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch (err) {
+          alert("Gagal Login Admin: " + err.message);
+        }
+      } else {
+        if (email === "admin@demo.com" && pass === "admin123") {
+          currentUser = { type: 'admin', email };
+          updateUserUI();
+          switchTab('admin');
+          loadAdminData();
+        } else {
+          alert("Mode Preview Admin:\nEmail: admin@demo.com\nPassword: admin123");
+        }
+      }
+    };
+
+    // Logout
+    window.handleLogout = function() {
+      if (!IS_PREVIEW && auth && currentUser?.type === 'admin') {
+        signOut(auth);
+      }
+      currentUser = null;
+      document.getElementById('sec-form').classList.add('hidden');
+      document.getElementById('sec-preview').classList.add('hidden');
+      document.getElementById('sec-admin').classList.add('hidden');
+      document.getElementById('sec-login').classList.remove('hidden');
+      
+      updateUserUI();
+    };
+
+    // Update UI Status User & Navigasi
+    function updateUserUI() {
+      const nameEl = document.getElementById('badge-name');
+      const detailEl = document.getElementById('badge-detail');
+
+      const deskNavForm = document.getElementById('desk-nav-form');
+      const deskNavAdmin = document.getElementById('desk-nav-admin');
+      const btnLogout = document.getElementById('btn-logout');
+
+      const mobNavForm = document.getElementById('mob-nav-form');
+      const mobNavAdmin = document.getElementById('mob-nav-admin');
+      const mobNavLogout = document.getElementById('mob-nav-logout');
+
+      if (!currentUser) {
+        nameEl.innerText = "Tamu";
+        detailEl.innerText = "Belum masuk";
+
+        deskNavForm.classList.add('hidden');
+        deskNavAdmin.classList.add('hidden');
+        btnLogout.classList.add('hidden');
+
+        mobNavForm.classList.add('hidden');
+        mobNavAdmin.classList.add('hidden');
+        mobNavLogout.classList.add('hidden');
+        return;
+      }
+
+      btnLogout.classList.remove('hidden');
+      mobNavLogout.classList.remove('hidden');
+
+      if (currentUser.type === 'user') {
+        nameEl.innerText = currentUser.data.nama || "Pegawai";
+        detailEl.innerText = `${currentUser.data.hp} / ${currentUser.data.email}`;
+
+        deskNavForm.classList.remove('hidden');
+        deskNavAdmin.classList.add('hidden');
+
+        mobNavForm.classList.remove('hidden');
+        mobNavAdmin.classList.add('hidden');
+      } else if (currentUser.type === 'admin') {
+        nameEl.innerText = "Administrator";
+        detailEl.innerText = currentUser.email;
+
+        deskNavForm.classList.add('hidden');
+        deskNavAdmin.classList.remove('hidden');
+
+        mobNavForm.classList.add('hidden');
+        mobNavAdmin.classList.remove('hidden');
+      }
+    }
+
+    // Load Data ke Form
+    function loadFormData() {
+      if (!currentUser || currentUser.type !== 'user') return;
+      const d = currentUser.data;
+
+      document.getElementById('bio-nama').value = d.nama || '';
+      document.getElementById('bio-nip').value = d.nip || '';
+      document.getElementById('bio-ktp').value = d.ktp || '';
+      document.getElementById('bio-jk').value = d.jk || 'Laki-laki';
+      document.getElementById('bio-tempat-lahir').value = d.tempatLahir || '';
+      document.getElementById('bio-tgl-lahir').value = d.tglLahir || '';
+      document.getElementById('bio-alamat').value = d.alamat || '';
+      document.getElementById('bio-pendidikan').value = d.pendidikan || 'S-1';
+      document.getElementById('bio-pangkat').value = d.pangkat || '';
+      document.getElementById('bio-jabatan').value = d.jabatan || '';
+      document.getElementById('bio-instansi').value = d.instansi || '';
+      document.getElementById('bio-kontak').value = `${d.hp} / ${d.email}`;
+      document.getElementById('bio-npwp').value = d.npwp || '';
+      document.getElementById('bio-rek-nagari').value = d.rekNagari || '';
+      document.getElementById('bio-pengalaman').value = d.pengalaman || '';
+    }
+
+    // Admin Upload Kop Surat Global
+    window.handleAdminKopUpload = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        globalKopBase64 = e.target.result;
+        const imgEl = document.getElementById('admin-kop-preview-img');
+        imgEl.src = globalKopBase64;
+        imgEl.classList.remove('hidden');
+        document.getElementById('admin-kop-placeholder').classList.add('hidden');
+
+        if (!IS_PREVIEW && db) {
+          await setDoc(doc(db, "settings", "kopSuratGlobal"), { kopSurat: globalKopBase64 });
+        } else {
+          localStorage.setItem("globalKopSurat", globalKopBase64);
+        }
+        alert("Kop Surat Global Berhasil Diperbarui!");
+      };
+      reader.readAsDataURL(file);
+    };
+
+    // Simpan Biodata Pegawai
+    window.saveBiodata = async function(e) {
+      e.preventDefault();
+      if (!currentUser || currentUser.type !== 'user') return;
+
+      const updatedData = {
+        ...currentUser.data,
+        nama: document.getElementById('bio-nama').value.trim(),
+        nip: document.getElementById('bio-nip').value.trim(),
+        ktp: document.getElementById('bio-ktp').value.trim(),
+        jk: document.getElementById('bio-jk').value,
+        tempatLahir: document.getElementById('bio-tempat-lahir').value.trim(),
+        tglLahir: document.getElementById('bio-tgl-lahir').value,
+        alamat: document.getElementById('bio-alamat').value.trim(),
+        pendidikan: document.getElementById('bio-pendidikan').value,
+        pangkat: document.getElementById('bio-pangkat').value.trim(),
+        jabatan: document.getElementById('bio-jabatan').value.trim(),
+        instansi: document.getElementById('bio-instansi').value.trim(),
+        npwp: document.getElementById('bio-npwp').value.trim(),
+        rekNagari: document.getElementById('bio-rek-nagari').value.trim(),
+        pengalaman: document.getElementById('bio-pengalaman').value.trim(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (!IS_PREVIEW && db) {
+        await setDoc(doc(db, "pegawai", currentUser.id), updatedData);
+      } else {
+        localStorage.setItem(currentUser.id, JSON.stringify(updatedData));
+      }
+
+      currentUser.data = updatedData;
+
+      // Tampilkan Modal Sukses
+      document.getElementById('modal-success-save').classList.remove('hidden');
+      lucide.createIcons();
+    };
+
+    // Konfirmasi Logout Setelah Sukses Simpan
+    window.confirmSuccessLogout = function() {
+      document.getElementById('modal-success-save').classList.add('hidden');
+      handleLogout();
+    };
+
+    // Export Dokumen Word (.docx) - Khusus Admin per Pegawai
+    window.adminExportDocx = function(pegawaiId) {
+      const d = allPegawaiData.find(item => item.id === pegawaiId);
+      if (!d) return;
+
+      const docxLib = window.docx;
+      if (!docxLib) {
+        alert("Library docx sedang dimuat, silakan coba lagi.");
+        return;
+      }
+
+      const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun } = docxLib;
+
+      const children = [];
+
+      // Memasukkan Kop Surat Global
+      if (globalKopBase64 && globalKopBase64.startsWith("data:image")) {
+        try {
+          const base64Data = globalKopBase64.split(',')[1];
+          const binaryString = window.atob(base64Data);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+
+          children.push(new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: bytes,
+                transformation: { width: 550, height: 95 }
+              })
+            ]
+          }));
+        } catch (e) {
+          console.error("Gagal memasukkan Kop Surat ke Word", e);
+        }
+      } else {
+        children.push(new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new TextRun({ text: "PEMERINTAH PROVINSI / KOTA / KABUPATEN", bold: true, size: 24 }),
+          ]
+        }));
+      }
+
+      // Judul Dokumen
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 300 },
+          children: [
+            new TextRun({ text: "BIODATA", bold: true, underline: {}, size: 26 })
+          ]
+        })
+      );
+
+      // Data Pegawai
+      const rowsData = [
+        ["Nama Lengkap & Gelar", d.nama],
+        ["NIP", d.nip],
+        ["No. KTP (NIK)", d.ktp],
+        ["Tempat / Tgl Lahir", `${d.tempatLahir || '-'}, ${d.tglLahir || '-'}`],
+        ["Jenis Kelamin", d.jk],
+        ["Alamat Lengkap", d.alamat],
+        ["Pendidikan Terakhir", d.pendidikan],
+        ["Pangkat / Golongan", d.pangkat],
+        ["Jabatan Saat Ini", d.jabatan],
+        ["Instansi Bertugas", d.instansi],
+        ["No. HP & Email", `${d.hp || '-'} / ${d.email || '-'}`],
+        ["NPWP", d.npwp],
+        ["No. Rekening Bank Nagari", d.rekNagari],
+        ["Pengalaman Bidang", d.pengalaman]
+      ];
+
+      const tableRows = rowsData.map(([label, val]) => {
+        return new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 35, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 20 })] })]
+            }),
+            new TableCell({
+              width: { size: 5, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: ":", size: 20 })] })]
+            }),
+            new TableCell({
+              width: { size: 60, type: WidthType.PERCENTAGE },
+              children: [new Paragraph({ children: [new TextRun({ text: val || "-", size: 20 })] })]
+            })
+          ]
+        });
+      });
+
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: tableRows
+      }));
+
+      // Signature Area
+      const now = new Date();
+      const dateStr = `${now.getDate()} October ${now.getFullYear()}`;
+
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          spacing: { before: 500 },
+          children: [
+            new TextRun({ text: `Padang, ${dateStr}`, size: 20 }),
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [
+            new TextRun({ text: "", size: 20 }),
+          ]
+        }),
+        new Paragraph({ spacing: { before: 800 } }),
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [
+            new TextRun({ text: d.nama || "-", bold: true, underline: {}, size: 20 }),
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [
+            new TextRun({ text: `NIP. ${d.nip || '-'}`, size: 20 }),
+          ]
+        })
+      );
+
+      const doc = new Document({
+        sections: [{ children }]
+      });
+
+      Packer.toBlob(doc).then(blob => {
+        saveAs(blob, `Biodata_${(d.nama || 'Pegawai').replace(/[^a-zA-Z0-9]/g, '_')}.docx`);
+      });
+    };
+
+    // Load Data Admin
+    async function loadAdminData() {
+      allPegawaiData = [];
+
+      // Load Kop Surat Global
+      if (!IS_PREVIEW && db) {
+        const kopSnap = await getDoc(doc(db, "settings", "kopSuratGlobal"));
+        if (kopSnap.exists()) globalKopBase64 = kopSnap.data().kopSurat || "";
+      } else {
+        globalKopBase64 = localStorage.getItem("globalKopSurat") || "";
+      }
+
+      if (globalKopBase64) {
+        const imgEl = document.getElementById('admin-kop-preview-img');
+        imgEl.src = globalKopBase64;
+        imgEl.classList.remove('hidden');
+        document.getElementById('admin-kop-placeholder').classList.add('hidden');
+      }
+
+      if (!IS_PREVIEW && db) {
+        const querySnapshot = await getDocs(collection(db, "pegawai"));
+        querySnapshot.forEach((docSnap) => {
+          allPegawaiData.push({ id: docSnap.id, ...docSnap.data() });
+        });
+      } else {
+        allPegawaiData = [
+          {
+            id: "pegawai_1",
+            nama: "Dr. Ahmad Fadhil, M.T.",
+            nip: "198501012010011001",
+            jabatan: "Analis Sistem Informasi",
+            instansi: "Diskominfo",
+            pendidikan: "S-2",
+            hp: "081234567890",
+            email: "ahmad@email.com",
+            ktp: "1371010101850001",
+            jk: "Laki-laki",
+            tempatLahir: "Padang",
+            tglLahir: "1985-01-01",
+            alamat: "Jl. Sudirman No. 45, Padang",
+            pangkat: "Penata Muda / III/a",
+            npwp: "12.345.678.9-123.000",
+            rekNagari: "12000210098765",
+            pengalaman: "Analis Sistem Informasi Manajemen"
+          },
+          {
+            id: "pegawai_2",
+            nama: "Siti Rahma, S.Kom.",
+            nip: "199002152015022002",
+            jabatan: "Pranata Komputer",
+            instansi: "Bappeda",
+            pendidikan: "S-1",
+            hp: "085298765432",
+            email: "siti@email.com",
+            ktp: "1371021502900002",
+            jk: "Perempuan",
+            tempatLahir: "Bukittinggi",
+            tglLahir: "1990-02-15",
+            alamat: "Jl. Ahmad Yani No. 12, Bukittinggi",
+            pangkat: "Penata / III/c",
+            npwp: "98.765.432.1-321.000",
+            rekNagari: "9870012345678",
+            pengalaman: "Pranata Komputer Madya"
+          }
+        ];
+      }
+      renderAdminTable(allPegawaiData);
+    }
+
+    function renderAdminTable(data) {
+      const tbody = document.getElementById('admin-table-body');
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Belum ada data pegawai.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => `
+        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+          <td class="p-3.5">
+            <div class="font-semibold text-slate-800">${item.nama || '-'}</div>
+            <div class="text-[10px] text-slate-400">NIP. ${item.nip || '-'}</div>
+          </td>
+          <td class="p-3.5">
+            <div>${item.jabatan || '-'}</div>
+            <div class="text-[10px] text-slate-400">${item.instansi || '-'}</div>
+          </td>
+          <td class="p-3.5">
+            <span class="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md font-semibold text-[10px]">${item.pendidikan || '-'}</span>
+          </td>
+          <td class="p-3.5 text-[11px]">
+            <div>${item.hp || '-'}</div>
+            <div class="text-slate-400">${item.email || '-'}</div>
+          </td>
+          <td class="p-3.5 text-center">
+            <div class="flex items-center justify-center gap-1.5">
+              <button onclick="adminExportDocx('${item.id}')" class="px-2.5 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition flex items-center gap-1" title="Unduh File Word (.docx)">
+                <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                <span>Unduh Word</span>
+              </button>
+              <button onclick="openDeleteModal('${item.id}')" class="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition" title="Hapus Data">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    window.filterAdminData = function() {
+      const q = document.getElementById('admin-search').value.toLowerCase();
+      const filtered = allPegawaiData.filter(d => 
+        (d.nama && d.nama.toLowerCase().includes(q)) ||
+        (d.nip && d.nip.toLowerCase().includes(q)) ||
+        (d.hp && d.hp.toLowerCase().includes(q))
+      );
+      renderAdminTable(filtered);
+    };
+
+    // Modal Hapus Data
+    window.openDeleteModal = function(id) {
+      deleteTargetId = id;
+      document.getElementById('modal-delete').classList.remove('hidden');
+    };
+
+    window.closeDeleteModal = function() {
+      deleteTargetId = null;
+      document.getElementById('modal-delete').classList.add('hidden');
+    };
+
+    document.getElementById('btn-confirm-delete').onclick = async function() {
+      if (!deleteTargetId) return;
+
+      if (!IS_PREVIEW && db) {
+        await deleteDoc(doc(db, "pegawai", deleteTargetId));
+      }
+      allPegawaiData = allPegawaiData.filter(item => item.id !== deleteTargetId);
+      renderAdminTable(allPegawaiData);
+      closeDeleteModal();
+    };
+
+    // Navigasi Tab
+    window.switchTab = function(tab) {
+      if (!currentUser) {
+        alert("Silakan masuk terlebih dahulu!");
+        return;
+      }
+
+      document.getElementById('sec-form').classList.add('hidden');
+      document.getElementById('sec-preview').classList.add('hidden');
+      document.getElementById('sec-admin').classList.add('hidden');
+
+      if (tab === 'form') {
+        document.getElementById('sec-form').classList.remove('hidden');
+      } else if (tab === 'admin') {
+        if (currentUser.type !== 'admin') {
+          alert("Khusus Akses Administrator!");
+          return;
+        }
+        document.getElementById('sec-admin').classList.remove('hidden');
+      }
+    };
+  </script>
+</body>
+</html>
